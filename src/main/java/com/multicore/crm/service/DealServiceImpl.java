@@ -3,9 +3,10 @@ package com.multicore.crm.service;
 import com.multicore.crm.dto.CreateDealRequest;
 import com.multicore.crm.dto.DealDTO;
 import com.multicore.crm.dto.UpdateDealRequest;
+import com.multicore.crm.entity.Business;
 import com.multicore.crm.entity.Deal;
+import com.multicore.crm.repository.BusinessRepository;
 import com.multicore.crm.repository.DealRepository;
-import com.multicore.crm.service.DealService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,27 +19,38 @@ import java.util.List;
 public class DealServiceImpl implements DealService {
 
     private final DealRepository dealRepository;
+    private final BusinessRepository businessRepository;
 
     @Override
     public DealDTO createDeal(Long businessId, CreateDealRequest request) {
+
+        Business business = businessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found"));
+
         Deal deal = new Deal();
-        deal.setBusinessId(businessId);
+        deal.setBusiness(business);
         deal.setCustomerId(request.getCustomerId());
         deal.setLeadId(request.getLeadId());
         deal.setTitle(request.getTitle());
         deal.setAmount(request.getAmount());
         deal.setStage(request.getStage());
         deal.setProbability(request.getProbability());
+
+        if (request.getExpectedCloseDate() != null) {
+            deal.setExpectedCloseDate(LocalDate.parse(request.getExpectedCloseDate()));
+        }
+
         dealRepository.save(deal);
         return toDTO(deal);
     }
 
     @Override
     public DealDTO updateDeal(Long businessId, Long dealId, UpdateDealRequest request) {
+
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new RuntimeException("Deal not found"));
 
-        if (!deal.getBusinessId().equals(businessId))
+        if (!deal.getBusiness().getId().equals(businessId))
             throw new RuntimeException("Unauthorized");
 
         if (request.getTitle() != null) deal.setTitle(request.getTitle());
@@ -56,15 +68,18 @@ public class DealServiceImpl implements DealService {
     @Override
     public List<DealDTO> getDeals(Long businessId) {
         return dealRepository.findByBusinessId(businessId)
-                .stream().map(this::toDTO).toList();
+                .stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     @Override
     public DealDTO getDeal(Long businessId, Long dealId) {
+
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new RuntimeException("Deal not found"));
 
-        if (!deal.getBusinessId().equals(businessId))
+        if (!deal.getBusiness().getId().equals(businessId))
             throw new RuntimeException("Unauthorized");
 
         return toDTO(deal);
@@ -72,10 +87,11 @@ public class DealServiceImpl implements DealService {
 
     @Override
     public void deleteDeal(Long businessId, Long dealId) {
+
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new RuntimeException("Deal not found"));
 
-        if (!deal.getBusinessId().equals(businessId))
+        if (!deal.getBusiness().getId().equals(businessId))
             throw new RuntimeException("Unauthorized");
 
         dealRepository.delete(deal);
@@ -84,7 +100,7 @@ public class DealServiceImpl implements DealService {
     private DealDTO toDTO(Deal deal) {
         DealDTO dto = new DealDTO();
         dto.setId(deal.getId());
-        dto.setBusinessId(deal.getBusinessId());
+        dto.setBusinessId(deal.getBusiness().getId());
         dto.setCustomerId(deal.getCustomerId());
         dto.setLeadId(deal.getLeadId());
         dto.setTitle(deal.getTitle());

@@ -148,6 +148,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/customers/**").hasAnyRole("BUSINESS_ADMIN","SALES_MANAGER","SALES_AGENT","SUPPORT_MANAGER","SUPPORT_AGENT","FINANCE","VIEWER")
                         .requestMatchers("/api/leads/**").hasAnyRole("BUSINESS_ADMIN","SALES_MANAGER","SALES_AGENT","VIEWER")
                         .requestMatchers("/api/tickets/**").hasAnyRole("BUSINESS_ADMIN","SUPPORT_MANAGER","SUPPORT_AGENT","VIEWER","CUSTOMER")
+                        .requestMatchers("/api/business/**").permitAll()
+                        .requestMatchers("/api/business/*/tasks/**").permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
