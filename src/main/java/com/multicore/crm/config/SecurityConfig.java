@@ -151,6 +151,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/business/**").permitAll()
                         .requestMatchers("/api/business/*/tasks/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/leads/activities").permitAll()
+                        .requestMatchers("/api/deals/products/**").authenticated()
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
