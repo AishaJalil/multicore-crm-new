@@ -150,6 +150,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/tickets/**").hasAnyRole("BUSINESS_ADMIN","SUPPORT_MANAGER","SUPPORT_AGENT","VIEWER","CUSTOMER")
                         .requestMatchers("/api/business/**").permitAll()
                         .requestMatchers("/api/business/*/tasks/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/leads/activities").permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
