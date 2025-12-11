@@ -154,6 +154,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/customers/**").hasAnyRole("BUSINESS_ADMIN","SALES_MANAGER","SALES_AGENT","SUPPORT_MANAGER","SUPPORT_AGENT","FINANCE","VIEWER")
                         .requestMatchers("/api/leads/**").hasAnyRole("BUSINESS_ADMIN","SALES_MANAGER","SALES_AGENT","VIEWER")
                         .requestMatchers("/api/tickets/**").hasAnyRole("BUSINESS_ADMIN","SUPPORT_MANAGER","SUPPORT_AGENT","VIEWER","CUSTOMER")
+                        .requestMatchers("/api/business/*/sales/**").hasAnyRole("BUSINESS_ADMIN","SALES_AGENT","SUPPORT_MANAGER","SUPPORT_AGENT")
                             .requestMatchers("/api/business/**").hasRole("BUSINESS_ADMIN")
                         .requestMatchers("/api/business/*/tasks/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/leads/activities").permitAll()
