@@ -13,14 +13,13 @@ export function CustomerPortal() {
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
-  // Mock customer ID - in real app, this would come from currentUser
-  const customerId = 'c1';
-  const customerTickets = tickets.filter(t => t.customerId === customerId);
-  const customerAppointments = appointments.filter(a => a.customerId === customerId);
+  const customerId = currentUser?.id;
+  const customerTickets = customerId ? tickets.filter(t => t.customerId === customerId) : [];
+  const customerAppointments = customerId ? appointments.filter(a => a.customerId === customerId) : [];
 
   const handleSubmitTicket = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentUser?.tenantId) {
+    if (currentUser?.tenantId && customerId) {
       addTicket({
         tenantId: currentUser.tenantId,
         customerId,

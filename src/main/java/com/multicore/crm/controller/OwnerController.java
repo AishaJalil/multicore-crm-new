@@ -6,6 +6,8 @@ import com.multicore.crm.dto.admin.OwnerResponseDTO;
 import com.multicore.crm.dto.business.CreateBusinessRequest;
 import com.multicore.crm.dto.business.CreateStaffRequest;
 import com.multicore.crm.entity.Business;
+import com.multicore.crm.repository.BusinessRepository;
+import com.multicore.crm.repository.UserRepository;
 import com.multicore.crm.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,9 +24,13 @@ import org.springframework.web.bind.annotation.*;
 public class OwnerController {
 
     private final AuthService authService;
+    private final BusinessRepository businessRepository;
+    private final UserRepository userRepository;
 
-    public OwnerController(AuthService authService) {
+    public OwnerController(AuthService authService, BusinessRepository businessRepository, UserRepository userRepository) {
         this.authService = authService;
+        this.businessRepository = businessRepository;
+        this.userRepository = userRepository;
     }
 
     // ==================== CREATE BUSINESS ====================
@@ -62,6 +68,40 @@ public class OwnerController {
                             .success(false)
                             .build());
         }
+    }
+
+    // ==================== GET BUSINESS PROFILE ====================
+    @GetMapping("/business/profile")
+    public ResponseEntity<?> getBusinessProfile(HttpServletRequest httpRequest) {
+        Long businessId = (Long) httpRequest.getAttribute("businessId");
+        if (businessId == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(OwnerResponseDTO.builder()
+                            .message("No business associated with this owner")
+                            .success(false)
+                            .build());
+        }
+        return businessRepository.findById(businessId)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(OwnerResponseDTO.builder()
+                                .message("Business not found")
+                                .success(false)
+                                .build()));
+    }
+
+    // ==================== LIST STAFF FOR BUSINESS ====================
+    @GetMapping("/business/{businessId}/staff")
+    public ResponseEntity<?> listStaff(@PathVariable Long businessId, HttpServletRequest httpRequest) {
+        Long requesterBusinessId = (Long) httpRequest.getAttribute("businessId");
+        if (requesterBusinessId == null || !requesterBusinessId.equals(businessId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(OwnerResponseDTO.builder()
+                            .message("You can only view staff for your own business")
+                            .success(false)
+                            .build());
+        }
+        return ResponseEntity.ok(userRepository.findByBusinessId(businessId));
     }
 
     // ==================== CREATE BUSINESS (LEGACY) ====================

@@ -4,6 +4,7 @@ import com.multicore.crm.dto.LoginResponse;
 import com.multicore.crm.dto.admin.CreateOwnerDTO;
 import com.multicore.crm.dto.admin.CreateOwnerRequest;
 import com.multicore.crm.dto.admin.OwnerResponseDTO;
+import com.multicore.crm.dto.admin.BusinessDTO;
 import com.multicore.crm.dto.admin.PlatformStatsDTO;
 import com.multicore.crm.entity.Business;
 import com.multicore.crm.service.AdminService;
@@ -13,6 +14,9 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.util.List;
+import java.util.Collections;
+import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -81,13 +85,25 @@ public class AdminController {
      * Admin gets all businesses in the system
      */
     @GetMapping("/businesses")
-    public ResponseEntity<?> getAllBusinesses() {
+    public ResponseEntity<List<BusinessDTO>> getAllBusinesses() {
         try {
-            return ResponseEntity.ok(adminService.getAllBusinesses());
+            List<Business> businesses = adminService.getAllBusinesses();
+            List<BusinessDTO> dtos = businesses.stream().map(b -> BusinessDTO.builder()
+                            .id(b.getId())
+                            .name(b.getName())
+                            .description(b.getDescription())
+                            .industry(b.getIndustry())
+                            .active(b.isActive())
+                            .ownerId(b.getOwner() != null ? b.getOwner().getId() : null)
+                            .ownerFullName(b.getOwner() != null ? b.getOwner().getFullName() : null)
+                            .ownerEmail(b.getOwner() != null ? b.getOwner().getEmail() : null)
+                            .build())
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (Exception e) {
-            log.error("Failed to fetch businesses: {}", e.getMessage());
+            log.error("Failed to fetch businesses", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to fetch businesses: " + e.getMessage());
+                    .body(Collections.emptyList());
         }
     }
 

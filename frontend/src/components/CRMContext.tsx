@@ -32,6 +32,7 @@ export interface User {
   role: UserRole;
   status: "active" | "suspended";
   createdAt: string;
+  businessId?: string | null;
 }
 
 export interface Customer {
@@ -133,6 +134,7 @@ export function CRMProvider({ children }: { children: any }) {
         role: roleMap[roleStr] || "viewer",
         status: "active",
         createdAt: new Date().toISOString(),
+        businessId: u.businessId ? String(u.businessId) : null,
       };
       setCurrentUser(user);
       
@@ -210,8 +212,10 @@ export function CRMProvider({ children }: { children: any }) {
     if (!currentUser) return;
     // Super Admin doesn't have access to business-level endpoints
     if (currentUser.role === 'super_admin') return;
+    const biz = currentUser.businessId;
+    if (!biz) return;
     try {
-      const data = await apiFetch<Lead[]>(`/api/leads`, { auth: true });
+      const data = await apiFetch<Lead[]>(`/api/leads/business/${biz}`, { auth: true });
       setLeads(data);
     } catch (e) {
       console.warn("Failed to refresh leads", e);
@@ -222,8 +226,10 @@ export function CRMProvider({ children }: { children: any }) {
     if (!currentUser) return;
     // Super Admin doesn't have access to business-level endpoints
     if (currentUser.role === 'super_admin') return;
+    const biz = currentUser.businessId;
+    if (!biz) return;
     try {
-      const data = await apiFetch<Ticket[]>(`/api/tickets`, { auth: true });
+      const data = await apiFetch<Ticket[]>(`/api/tickets/business/${biz}`, { auth: true });
       setTickets(data);
     } catch (e) {
       console.warn("Failed to refresh tickets", e);

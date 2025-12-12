@@ -2,7 +2,7 @@ export const apiBase = (import.meta.env.VITE_API_URL as string) || "";
 
 type FetchOptions = RequestInit & { auth?: boolean };
 
-function getAuthHeader() {
+function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -11,24 +11,30 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const headers: HeadersInit = {
+  const baseHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.auth ? getAuthHeader() : {}),
-    ...(options.headers || {}),
+  };
+  const headers: HeadersInit = {
+    ...baseHeaders,
+    ...((options.headers as HeadersInit | undefined) ?? {}),
   };
 
   const res = await fetch(`${apiBase}${path}`, { ...options, headers });
-  
+
   // Handle 401 Unauthorized - token expired or invalid
   if (res.status === 401) {
     localStorage.removeItem("token");
     // Redirect to login if not already there
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-      window.location.href = '/';
+    if (
+      typeof window !== "undefined" &&
+      !window.location.pathname.includes("/login")
+    ) {
+      window.location.href = "/";
     }
     throw new Error("Session expired. Please login again.");
   }
-  
+
   if (!res.ok) {
     let errorMessage = `Request failed: ${res.status}`;
     try {
@@ -38,7 +44,7 @@ export async function apiFetch<T>(
         errorMessage = data.message;
       } else if (data.error) {
         errorMessage = data.error;
-      } else if (typeof data === 'string') {
+      } else if (typeof data === "string") {
         errorMessage = data;
       }
     } catch {
@@ -60,7 +66,11 @@ export async function apiFetch<T>(
 
 // Auth helpers
 export async function login(email: string, password: string) {
-  const data = await apiFetch<{ token: string; success?: boolean; message?: string }>(`/api/auth/login`, {
+  const data = await apiFetch<{
+    token: string;
+    success?: boolean;
+    message?: string;
+  }>(`/api/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -79,10 +89,13 @@ export async function registerCustomer(payload: {
   password: string;
   phone: string;
 }) {
-  const data = await apiFetch<{ success?: boolean; message?: string }>(`/api/auth/register/customer`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const data = await apiFetch<{ success?: boolean; message?: string }>(
+    `/api/auth/register/customer`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
   if (data.success === false) {
     throw new Error(data.message || "Registration failed");
   }

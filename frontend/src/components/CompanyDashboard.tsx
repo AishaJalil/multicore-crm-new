@@ -1,58 +1,95 @@
-import { useCRM } from './CRMContext';
-import { Users, Target, Calendar, TrendingUp, CheckCircle, Clock, Ticket as TicketIcon } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useCRM } from "./CRMContext";
+import {
+  Users,
+  Target,
+  Calendar,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  Ticket as TicketIcon,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
 
 export function CompanyDashboard() {
-  const { currentUser, customers, leads, tasks = [], appointments = [], tickets = [] } = useCRM();
+  const {
+    currentUser,
+    customers,
+    leads,
+    tasks = [],
+    appointments = [],
+    tickets = [],
+  } = useCRM();
 
-  // Handle cases where tenantId might not exist - use all data for now
-  const tenantCustomers = customers || [];
-  const tenantLeads = leads || [];
-  const tenantTasks = tasks || [];
-  const tenantAppointments = appointments || [];
-  const tenantTickets = tickets || [];
+  // Normalize possibly paged or non-array responses
+  const normalize = (data: any): any[] => {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.content)) return data.content;
+    return [];
+  };
 
-  const pendingTasks = tenantTasks.filter(t => t?.status === 'pending').length;
-  const upcomingAppointments = tenantAppointments.filter(a => a?.status === 'scheduled').length;
-  const openTickets = tenantTickets.filter(t => t?.status === 'open' || t?.status === 'in_progress').length;
+  const tenantCustomers = normalize(customers);
+  const tenantLeads = normalize(leads);
+  const tenantTasks = normalize(tasks);
+  const tenantAppointments = normalize(appointments);
+  const tenantTickets = normalize(tickets);
+
+  const pendingTasks = tenantTasks.filter(
+    (t: any) => t?.status === "pending"
+  ).length;
+  const upcomingAppointments = tenantAppointments.filter(
+    (a: any) => a?.status === "scheduled"
+  ).length;
+  const openTickets = tenantTickets.filter(
+    (t: any) => t?.status === "open" || t?.status === "in_progress"
+  ).length;
 
   const leadsByStatus = {
-    new: tenantLeads.filter(l => l?.status === 'new').length,
-    contacted: tenantLeads.filter(l => l?.status === 'contacted').length,
-    qualified: tenantLeads.filter(l => l?.status === 'qualified').length,
-    proposal: tenantLeads.filter(l => l?.status === 'proposal').length,
-    won: tenantLeads.filter(l => l?.status === 'won').length,
-    lost: tenantLeads.filter(l => l?.status === 'lost').length
+    new: tenantLeads.filter((l) => l?.status === "new").length,
+    contacted: tenantLeads.filter((l) => l?.status === "contacted").length,
+    qualified: tenantLeads.filter((l) => l?.status === "qualified").length,
+    proposal: tenantLeads.filter((l) => l?.status === "proposal").length,
+    won: tenantLeads.filter((l) => l?.status === "won").length,
+    lost: tenantLeads.filter((l) => l?.status === "lost").length,
   };
 
   const leadPipelineData = [
-    { name: 'New', value: leadsByStatus.new },
-    { name: 'Contacted', value: leadsByStatus.contacted },
-    { name: 'Qualified', value: leadsByStatus.qualified },
-    { name: 'Proposal', value: leadsByStatus.proposal },
-    { name: 'Won', value: leadsByStatus.won }
+    { name: "New", value: leadsByStatus.new },
+    { name: "Contacted", value: leadsByStatus.contacted },
+    { name: "Qualified", value: leadsByStatus.qualified },
+    { name: "Proposal", value: leadsByStatus.proposal },
+    { name: "Won", value: leadsByStatus.won },
   ];
 
   const activityData = [
-    { month: 'Jul', leads: 12, customers: 8 },
-    { month: 'Aug', leads: 19, customers: 11 },
-    { month: 'Sep', leads: 15, customers: 9 },
-    { month: 'Oct', leads: 22, customers: 14 },
-    { month: 'Nov', leads: 28, customers: 18 },
-    { month: 'Dec', leads: 24, customers: 15 }
+    { month: "Jul", leads: 12, customers: 8 },
+    { month: "Aug", leads: 19, customers: 11 },
+    { month: "Sep", leads: 15, customers: 9 },
+    { month: "Oct", leads: 22, customers: 14 },
+    { month: "Nov", leads: 28, customers: 18 },
+    { month: "Dec", leads: 24, customers: 15 },
   ];
 
-  const StatCard = ({ 
-    icon: Icon, 
-    label, 
-    value, 
-    subValue, 
+  const StatCard = ({
+    icon: Icon,
+    label,
+    value,
+    subValue,
     color,
-    trend
-  }: { 
-    icon: any; 
-    label: string; 
-    value: string | number; 
+    trend,
+  }: {
+    icon: any;
+    label: string;
+    value: string | number;
     subValue?: string;
     color: string;
     trend?: string;
@@ -87,14 +124,20 @@ export function CompanyDashboard() {
           icon={Users}
           label="Total Customers"
           value={tenantCustomers.length}
-          subValue={`${tenantCustomers.filter(c => c.status === 'active').length} active`}
+          subValue={`${
+            tenantCustomers.filter((c) => c.status === "active").length
+          } active`}
           color="bg-blue-600"
           trend="+12%"
         />
         <StatCard
           icon={Target}
           label="Active Leads"
-          value={tenantLeads.filter(l => !['won', 'lost'].includes(l.status)).length}
+          value={
+            tenantLeads.filter(
+              (l: any) => !["won", "lost"].includes(String(l.status))
+            ).length
+          }
           subValue={`${leadsByStatus.won} converted`}
           color="bg-orange-600"
           trend="+8%"
@@ -103,7 +146,9 @@ export function CompanyDashboard() {
           icon={CheckCircle}
           label="Pending Tasks"
           value={pendingTasks}
-          subValue={`${tenantTasks.filter(t => t.status === 'completed').length} completed`}
+          subValue={`${
+            tenantTasks.filter((t: any) => t.status === "completed").length
+          } completed`}
           color="bg-green-600"
         />
         <StatCard
@@ -123,11 +168,11 @@ export function CompanyDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
                 }}
               />
               <Bar dataKey="value" fill="#6366f1" radius={[8, 8, 0, 0]} />
@@ -142,15 +187,25 @@ export function CompanyDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
                 }}
               />
-              <Line type="monotone" dataKey="leads" stroke="#f97316" strokeWidth={2} />
-              <Line type="monotone" dataKey="customers" stroke="#3b82f6" strokeWidth={2} />
+              <Line
+                type="monotone"
+                dataKey="leads"
+                stroke="#f97316"
+                strokeWidth={2}
+              />
+              <Line
+                type="monotone"
+                dataKey="customers"
+                stroke="#3b82f6"
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -161,29 +216,52 @@ export function CompanyDashboard() {
           <h3 className="mb-4">Recent Tasks</h3>
           <div className="space-y-3">
             {tenantTasks.length > 0 ? (
-              tenantTasks.slice(0, 5).map(task => (
-                <div key={task?.id || Math.random()} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              tenantTasks.slice(0, 5).map((task) => (
+                <div
+                  key={task?.id || Math.random()}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      task?.status === 'completed' ? 'bg-green-500' :
-                      task?.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
-                    }`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        task?.status === "completed"
+                          ? "bg-green-500"
+                          : task?.status === "in_progress"
+                          ? "bg-blue-500"
+                          : "bg-gray-400"
+                      }`}
+                    />
                     <div>
-                      <div className="text-gray-900">{task?.title || 'Untitled Task'}</div>
-                      <div className="text-gray-500">Due: {task?.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}</div>
+                      <div className="text-gray-900">
+                        {task?.title || "Untitled Task"}
+                      </div>
+                      <div className="text-gray-500">
+                        Due:{" "}
+                        {task?.dueDate
+                          ? new Date(task.dueDate).toLocaleDateString()
+                          : "N/A"}
+                      </div>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded text-white ${
-                    task?.type === 'call' ? 'bg-blue-500' :
-                    task?.type === 'meeting' ? 'bg-purple-500' :
-                    task?.type === 'email' ? 'bg-green-500' : 'bg-orange-500'
-                  }`}>
-                    {task?.type || 'task'}
+                  <span
+                    className={`px-2 py-1 rounded text-white ${
+                      task?.type === "call"
+                        ? "bg-blue-500"
+                        : task?.type === "meeting"
+                        ? "bg-purple-500"
+                        : task?.type === "email"
+                        ? "bg-green-500"
+                        : "bg-orange-500"
+                    }`}
+                  >
+                    {task?.type || "task"}
                   </span>
                 </div>
               ))
             ) : (
-              <div className="text-gray-500 text-center py-4">No tasks available</div>
+              <div className="text-gray-500 text-center py-4">
+                No tasks available
+              </div>
             )}
           </div>
         </div>
@@ -203,7 +281,9 @@ export function CompanyDashboard() {
                 <Target className="w-5 h-5 text-blue-600" />
                 <span className="text-gray-700">High-Value Leads</span>
               </div>
-              <span className="text-gray-900">{tenantLeads.filter(l => l.score >= 70).length}</span>
+              <span className="text-gray-900">
+                {tenantLeads.filter((l: any) => Number(l.score) >= 70).length}
+              </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
               <div className="flex items-center gap-3">

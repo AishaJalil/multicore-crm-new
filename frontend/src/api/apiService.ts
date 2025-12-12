@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosHeaders } from "axios";
 
 export interface MeResponse {
   id: number;
@@ -46,11 +46,17 @@ const client: AxiosInstance = axios.create({
 
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
+  // Ensure headers is an AxiosHeaders instance for type safety
+  if (!config.headers) {
+    config.headers = new AxiosHeaders();
+  }
   if (token) {
-    config.headers = {
-      ...(config.headers || {}),
-      Authorization: `Bearer ${token}`,
-    };
+    if (config.headers instanceof AxiosHeaders) {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    } else {
+      // Fallback for non-AxiosHeaders implementations
+      (config.headers as any)["Authorization"] = `Bearer ${token}`;
+    }
   }
   return config;
 });
@@ -62,8 +68,11 @@ client.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       // Redirect to login if not already there
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/';
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login")
+      ) {
+        window.location.href = "/";
       }
     }
     return Promise.reject(error);
@@ -71,6 +80,11 @@ client.interceptors.response.use(
 );
 
 export const apiService = {
+  // Generic GET for one-off endpoints
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    const res = await client.get<T>(url, config);
+    return res.data as T;
+  },
   async login(email: string, password: string): Promise<{ token: string }> {
     const res = await client.post<{ token: string }>("/api/auth/login", {
       email,
@@ -107,6 +121,47 @@ export const apiService = {
 
   async getTickets(): Promise<TicketDTO[]> {
     const res = await client.get<TicketDTO[]>("/api/tickets");
+    return res.data;
+  },
+  // ---- Admin / Tenants ----
+  async getBusinessesAdmin(): Promise<any[]> {
+    const res = await client.get("/api/admin/businesses");
+    const raw = res.data;
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.items)
+      ? raw.items
+      : Array.isArray(raw?.content)
+      ? raw.content
+      : [];
+    // Map DTO with flat owner fields to UI shape with nested owner
+    return list.map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      description: b.description,
+      industry: b.industry,
+      active: b.active,
+      owner: b.ownerId
+        ? { id: b.ownerId, fullName: b.ownerFullName, email: b.ownerEmail }
+        : undefined,
+      createdAt: b.createdAt,
+    }));
+  },
+  async createOwner(payload: {
+    name: string;
+    email: string;
+    password: string;
+    businessName?: string;
+  }) {
+    const res = await client.post(`/api/admin/owners`, payload);
+    return res.data;
+  },
+  async setBusinessStatus(id: number, active: boolean) {
+    const res = await client.patch(
+      `/api/admin/businesses/${id}/status`,
+      undefined,
+      { params: { active } }
+    );
     return res.data;
   },
   async postLead(payload: Partial<LeadDTO>) {
