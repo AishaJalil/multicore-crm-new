@@ -145,6 +145,7 @@ public class SecurityConfig {
                         // Public endpoints - NO JWT REQUIRED
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register/customer").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/portal/register").permitAll()
                         // Admin/Owner creation flows
                         .requestMatchers(HttpMethod.POST, "/api/auth/register/admin").permitAll()
                         .requestMatchers("/error", "/actuator/**", "/api/health").permitAll()
@@ -155,7 +156,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/leads/**").hasAnyRole("BUSINESS_ADMIN","SALES_MANAGER","SALES_AGENT","VIEWER")
                         .requestMatchers("/api/tickets/**").hasAnyRole("BUSINESS_ADMIN","SUPPORT_MANAGER","SUPPORT_AGENT","VIEWER","CUSTOMER")
                         .requestMatchers("/api/business/*/sales/**").hasAnyRole("BUSINESS_ADMIN","SALES_AGENT","SUPPORT_MANAGER","SUPPORT_AGENT")
-                            .requestMatchers("/api/business/**").hasRole("BUSINESS_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/business").hasRole("BUSINESS_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/business/*/staff").hasRole("BUSINESS_ADMIN")
+                        .requestMatchers("/api/business/**").hasRole("BUSINESS_ADMIN")
                         .requestMatchers("/api/business/*/tasks/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/leads/activities").permitAll()
                         .requestMatchers("/api/deals/products/**").authenticated()

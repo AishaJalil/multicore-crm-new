@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCRM } from './CRMContext';
-import { Building2, Users, Target, TrendingUp, DollarSign, Plus, UserPlus, Power, Eye } from 'lucide-react';
+import { Building2, Users, Target, TrendingUp, Ticket, Plus, UserPlus, Power, Eye, Search, Activity } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 
 interface Business {
@@ -26,6 +26,14 @@ interface PlatformStats {
   totalCustomers: number;
 }
 
+interface ActivityItem {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+  businessName?: string;
+}
+
 export function SuperAdminDashboard() {
   const { currentUser } = useCRM();
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -33,16 +41,24 @@ export function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Modal states
   const [showCreateOwner, setShowCreateOwner] = useState(false);
-  const [selectedBusinessId, setSelectedBusinessId] = useState<number | null>(null);
 
   // Owner form state
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState('');
+  const [businessName, setBusinessName] = useState('');
+
+  // Activity feed (mock data for now - would come from audit logs)
+  const [activities] = useState<ActivityItem[]>([
+    { id: '1', type: 'business_created', message: 'New business "Acme Corp" created', timestamp: new Date().toISOString(), businessName: 'Acme Corp' },
+    { id: '2', type: 'owner_created', message: 'Owner "John Doe" created', timestamp: new Date(Date.now() - 3600000).toISOString() },
+    { id: '3', type: 'business_activated', message: 'Business "Tech Solutions" activated', timestamp: new Date(Date.now() - 7200000).toISOString(), businessName: 'Tech Solutions' },
+  ]);
 
   // Fetch businesses and stats
   useEffect(() => {
@@ -66,39 +82,43 @@ export function SuperAdminDashboard() {
     }
   };
 
-
   const handleCreateOwner = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBusinessId) {
-      setError('Please select a business');
-      return;
-    }
-
     setError('');
     setSuccess('');
 
+    // Validation
+    if (ownerPassword !== ownerPasswordConfirm) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (ownerPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     try {
-      const response = await apiFetch<any>('/api/admin/create-owner', {
+      const response = await apiFetch<any>('/api/admin/owners', {
         method: 'POST',
         body: JSON.stringify({
-          fullName: ownerName,
+          name: ownerName,
           email: ownerEmail,
           password: ownerPassword,
-          phone: ownerPhone,
-          businessId: selectedBusinessId
+          businessName: businessName || null
         }),
         auth: true
       });
 
-      setSuccess(`Owner "${ownerName}" created successfully for business!`);
+      setSuccess(`Owner "${ownerName}" created successfully! ${businessName ? `Business "${businessName}" also created.` : 'Owner can create their business after login.'}`);
       setOwnerName('');
       setOwnerEmail('');
       setOwnerPassword('');
-      setOwnerPhone('');
+      setOwnerPasswordConfirm('');
+      setBusinessName('');
       setShowCreateOwner(false);
-      setSelectedBusinessId(null);
       await fetchData();
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err: any) {
       setError(err.message || 'Failed to create owner');
       setTimeout(() => setError(''), 5000);
@@ -119,6 +139,12 @@ export function SuperAdminDashboard() {
       setTimeout(() => setError(''), 5000);
     }
   };
+
+  const filteredBusinesses = businesses.filter(business =>
+    business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    business.owner?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    business.owner?.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const StatCard = ({ 
     icon: Icon, 
@@ -177,39 +203,7 @@ export function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-        <button
-          onClick={() => {
-            if (businesses.length === 0) {
-              setError('No businesses available. Business owners can create businesses.');
-              return;
-            }
-            setShowCreateOwner(true);
-            setShowCreateBusiness(false);
-          }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow text-left"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-600 rounded-xl">
-              <UserPlus className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="text-gray-900 font-semibold">Create Business Owner</div>
-              <div className="text-gray-600 text-sm">Add owner for an existing business</div>
-            </div>
-            <Plus className="w-5 h-5 text-gray-400 ml-auto" />
-          </div>
-        </button>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Business creation is done by Business Owners, not Super Admin. 
-            Super Admin can only create owners for existing businesses.
-          </p>
-        </div>
-      </div>
-
-      {/* Stats */}
+      {/* Platform KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={Building2}
@@ -217,12 +211,6 @@ export function SuperAdminDashboard() {
           value={stats?.totalBusinesses || businesses.length}
           change="+12%"
           color="bg-purple-600"
-        />
-        <StatCard
-          icon={Building2}
-          label="Active Businesses"
-          value={stats?.activeBusinesses || businesses.filter(b => b.active).length}
-          color="bg-green-600"
         />
         <StatCard
           icon={Users}
@@ -237,23 +225,81 @@ export function SuperAdminDashboard() {
           value={stats?.totalLeads || 0}
           color="bg-orange-600"
         />
+        <StatCard
+          icon={Ticket}
+          label="Open Tickets"
+          value={0}
+          color="bg-red-600"
+        />
       </div>
 
-      {/* Businesses Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Quick Actions */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <button
+              onClick={() => setShowCreateOwner(true)}
+              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-5 h-5" />
+              Create Business Owner
+            </button>
+          </div>
+        </div>
+
+        {/* Tenant Activity Feed */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Tenant Activity Feed</h3>
+              <Activity className="w-5 h-5 text-gray-400" />
+            </div>
+            <div className="space-y-3">
+              {activities.map(activity => (
+                <div key={activity.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600 mt-2" />
+                  <div className="flex-1">
+                    <p className="text-gray-900 text-sm">{activity.message}</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {new Date(activity.timestamp).toLocaleString()}
+                      {activity.businessName && ` • ${activity.businessName}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Businesses Table with Search */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-gray-900">All Businesses</h3>
-          <button
-            onClick={fetchData}
-            className="text-indigo-600 hover:text-indigo-700 text-sm"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search businesses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={fetchData}
+              className="text-indigo-600 hover:text-indigo-700 text-sm"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
-        {businesses.length === 0 ? (
+        {filteredBusinesses.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p>No businesses yet. Create your first business to get started.</p>
+            <p>{searchTerm ? 'No businesses found matching your search.' : 'No businesses yet. Create your first business owner to get started.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -268,7 +314,7 @@ export function SuperAdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {businesses.map(business => (
+                {filteredBusinesses.map(business => (
                   <tr key={business.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
@@ -320,9 +366,8 @@ export function SuperAdminDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            setSelectedBusinessId(business.id);
+                            setBusinessName(business.name);
                             setShowCreateOwner(true);
-                            setShowCreateBusiness(false);
                           }}
                           className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                           title="Create Owner"
@@ -348,32 +393,9 @@ export function SuperAdminDashboard() {
       {/* Create Owner Modal */}
       {showCreateOwner && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Business Owner</h2>
             <form onSubmit={handleCreateOwner} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 mb-2">Select Business *</label>
-                <select
-                  value={selectedBusinessId || ''}
-                  onChange={(e) => setSelectedBusinessId(Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Choose a business...</option>
-                  {businesses.map(business => (
-                    <option key={business.id} value={business.id}>
-                      {business.name} {business.owner ? '(has owner)' : '(no owner)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {selectedBusinessId && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-blue-800">
-                    Creating owner for: <strong>{businesses.find(b => b.id === selectedBusinessId)?.name}</strong>
-                  </p>
-                </div>
-              )}
               <div>
                 <label className="block text-gray-700 mb-2">Full Name *</label>
                 <input
@@ -407,14 +429,26 @@ export function SuperAdminDashboard() {
                 <p className="text-gray-500 text-sm mt-1">Minimum 6 characters</p>
               </div>
               <div>
-                <label className="block text-gray-700 mb-2">Phone *</label>
+                <label className="block text-gray-700 mb-2">Confirm Password *</label>
                 <input
-                  type="tel"
-                  value={ownerPhone}
-                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  type="password"
+                  value={ownerPasswordConfirm}
+                  onChange={(e) => setOwnerPasswordConfirm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  minLength={6}
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-gray-700 mb-2">Business Name (Optional)</label>
+                <input
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Leave empty if owner will create business later"
+                />
+                <p className="text-gray-500 text-sm mt-1">If provided, a business will be created and assigned to this owner</p>
               </div>
               <div className="flex gap-3 pt-4">
                 <button
@@ -427,7 +461,11 @@ export function SuperAdminDashboard() {
                   type="button"
                   onClick={() => {
                     setShowCreateOwner(false);
-                    setSelectedBusinessId(null);
+                    setOwnerName('');
+                    setOwnerEmail('');
+                    setOwnerPassword('');
+                    setOwnerPasswordConfirm('');
+                    setBusinessName('');
                     setError('');
                     setSuccess('');
                   }}

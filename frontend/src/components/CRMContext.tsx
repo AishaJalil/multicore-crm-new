@@ -136,11 +136,23 @@ export function CRMProvider({ children }: { children: any }) {
       };
       setCurrentUser(user);
       
-      // Set initial view based on role - ensure super_admin goes to correct dashboard
+      // Set initial view based on role - route to role-specific dashboard
       if (user.role === "super_admin") {
         setCurrentView("super-admin-dashboard");
       } else if (user.role === "owner") {
         setCurrentView("owner-dashboard");
+      } else if (user.role === "sales_manager") {
+        setCurrentView("sales-manager-dashboard");
+      } else if (user.role === "sales_agent") {
+        setCurrentView("sales-agent-dashboard");
+      } else if (user.role === "support_manager") {
+        setCurrentView("support-manager-dashboard");
+      } else if (user.role === "support_agent") {
+        setCurrentView("support-agent-dashboard");
+      } else if (user.role === "finance") {
+        setCurrentView("finance-dashboard");
+      } else if (user.role === "viewer") {
+        setCurrentView("viewer-dashboard");
       } else {
         setCurrentView("company-dashboard");
       }

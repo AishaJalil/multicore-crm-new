@@ -2,11 +2,13 @@ package com.multicore.crm.controller;
 
 import com.multicore.crm.dto.LoginResponse;
 import com.multicore.crm.dto.admin.CreateOwnerDTO;
+import com.multicore.crm.dto.admin.CreateOwnerRequest;
 import com.multicore.crm.dto.admin.OwnerResponseDTO;
 import com.multicore.crm.dto.admin.PlatformStatsDTO;
 import com.multicore.crm.entity.Business;
 import com.multicore.crm.service.AdminService;
 import com.multicore.crm.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -28,13 +30,36 @@ public class AdminController {
         this.adminService = adminService;
     }
 
-    // ==================== CREATE OWNER ====================
-    // Note: Business creation is now done by Business Owners via /api/owner/create-business
-    // Super Admin can only create owners for existing businesses
+    // ==================== CREATE OWNER (NEW: Direct creation) ====================
     /**
-     * POST /api/admin/create-owner
-     * Admin creates an owner for a business
+     * POST /api/admin/owners
+     * Super Admin creates a Business Owner directly (with optional business creation)
      */
+    @PostMapping("/owners")
+    public ResponseEntity<LoginResponse> createOwnerDirect(
+            @Valid @RequestBody CreateOwnerRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            Long createdById = (Long) httpRequest.getAttribute("userId");
+            LoginResponse response = authService.createOwnerDirect(
+                    request.getName(),
+                    request.getEmail(),
+                    request.getPassword(),
+                    request.getBusinessName(),
+                    createdById
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            log.error("Owner creation failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(LoginResponse.builder()
+                            .message("Owner creation failed: " + e.getMessage())
+                            .success(false)
+                            .build());
+        }
+    }
+
+    // ==================== CREATE OWNER (LEGACY: For existing business) ====================
     @PostMapping("/create-owner")
     public ResponseEntity<LoginResponse> createOwner(@Valid @RequestBody CreateOwnerDTO request) {
         try {

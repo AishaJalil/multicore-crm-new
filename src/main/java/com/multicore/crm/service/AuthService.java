@@ -240,7 +240,106 @@ public class AuthService {
         return savedBusiness;
     }
 
-    // ==================== CREATE OWNER ====================
+    // ==================== CREATE BUSINESS FOR OWNER ====================
+    public Business createBusinessForOwner(Long ownerId, String name, String address, String phone, String timezone) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
+
+        Business business = Business.builder()
+                .name(name)
+                .address(address)
+                .active(true)
+                .owner(owner)
+                .build();
+
+        Business savedBusiness = businessRepository.save(business);
+        
+        // Update owner's business reference
+        owner.setBusiness(savedBusiness);
+        userRepository.save(owner);
+        
+        log.info("Business created for owner {}: {}", owner.getEmail(), savedBusiness.getName());
+        return savedBusiness;
+    }
+
+    // ==================== UPDATE BUSINESS ====================
+    public Business updateBusiness(Long businessId, String name, String address, String phone, String timezone) {
+        Business business = businessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found"));
+
+        if (name != null && !name.trim().isEmpty()) business.setName(name);
+        if (address != null) business.setAddress(address);
+        // Note: phone and timezone fields would need to be added to Business entity if required
+
+        Business savedBusiness = businessRepository.save(business);
+        log.info("Business updated: {}", savedBusiness.getName());
+        return savedBusiness;
+    }
+
+    // ==================== CREATE OWNER (NEW: Direct creation by Super Admin) ====================
+    public LoginResponse createOwnerDirect(String name, String email, String password, String businessName, Long createdById) {
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already registered");
+        }
+
+        Business business = null;
+        // If businessName provided, create business; otherwise owner will create it later
+        if (businessName != null && !businessName.trim().isEmpty()) {
+            business = Business.builder()
+                    .name(businessName)
+                    .active(true)
+                    .build();
+            business = businessRepository.save(business);
+            log.info("Business created for owner: {}", businessName);
+        }
+
+        Role ownerRole = roleRepository.findByRoleName(Role.RoleType.BUSINESS_ADMIN)
+                .orElseGet(() -> {
+                    Role newRole = Role.builder()
+                            .roleName(Role.RoleType.BUSINESS_ADMIN)
+                            .description("Business Owner")
+                            .build();
+                    return roleRepository.save(newRole);
+                });
+
+        User createdBy = null;
+        if (createdById != null) {
+            createdBy = userRepository.findById(createdById).orElse(null);
+        }
+
+        User owner = User.builder()
+                .fullName(name)
+                .email(email)
+                .password(passwordEncoder.encode(password))
+                .business(business)
+                .status(User.UserStatus.ACTIVE)
+                .roles(new HashSet<>(Arrays.asList(ownerRole)))
+                .createdBy(createdBy)
+                .requirePasswordReset(false) // Set to true if password was auto-generated
+                .build();
+
+        User savedOwner = userRepository.save(owner);
+        
+        if (business != null) {
+            business.setOwner(savedOwner);
+            businessRepository.save(business);
+        }
+        
+        log.info("Owner created successfully: {} by user: {}", savedOwner.getEmail(), createdById);
+
+        // Don't return token - owner should login themselves
+        return LoginResponse.builder()
+                .userId(savedOwner.getId())
+                .email(savedOwner.getEmail())
+                .fullName(savedOwner.getFullName())
+                .businessId(business != null ? business.getId() : null)
+                .role("BUSINESS_ADMIN")
+                .message("Owner created successfully. Please login to set up your business.")
+                .success(true)
+                .build();
+    }
+
+    // ==================== CREATE OWNER (LEGACY: For existing business) ====================
     public LoginResponse createOwner(CreateOwnerDTO request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("Email already registered");
@@ -266,6 +365,7 @@ public class AuthService {
                 .business(business)
                 .status(User.UserStatus.ACTIVE)
                 .roles(new HashSet<>(Arrays.asList(ownerRole)))
+                .requirePasswordReset(false)
                 .build();
 
         User savedOwner = userRepository.save(owner);
@@ -287,7 +387,7 @@ public class AuthService {
     }
 
     // ==================== CREATE STAFF ====================
-    public LoginResponse createStaff(Long businessId, String fullName, String email, String password, String phone, Role.RoleType roleType) {
+    public LoginResponse createStaff(Long businessId, String fullName, String email, String password, String phone, Role.RoleType roleType, Long createdById) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email already registered");
         }
@@ -309,6 +409,11 @@ public class AuthService {
                     return roleRepository.save(newRole);
                 });
 
+        User createdBy = null;
+        if (createdById != null) {
+            createdBy = userRepository.findById(createdById).orElse(null);
+        }
+
         User staff = User.builder()
                 .fullName(fullName)
                 .email(email)
@@ -317,9 +422,12 @@ public class AuthService {
                 .business(business)
                 .status(User.UserStatus.ACTIVE)
                 .roles(new HashSet<>(Arrays.asList(staffRole)))
+                .createdBy(createdBy)
+                .requirePasswordReset(false) // Set to true if password was auto-generated
                 .build();
 
         User savedStaff = userRepository.save(staff);
+        log.info("Staff created successfully: {} by user: {}", savedStaff.getEmail(), createdById);
         log.info("Staff created successfully: {}", savedStaff.getEmail());
 
         String token = jwtUtil.generateToken(savedStaff);
