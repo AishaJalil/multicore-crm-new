@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useCRM } from "./CRMContext";
 import {
   Users,
@@ -70,14 +71,27 @@ export function CompanyDashboard() {
     { name: "Won", value: leadsByStatus.won },
   ];
 
-  const activityData = [
-    { month: "Jul", leads: 12, customers: 8 },
-    { month: "Aug", leads: 19, customers: 11 },
-    { month: "Sep", leads: 15, customers: 9 },
-    { month: "Oct", leads: 22, customers: 14 },
-    { month: "Nov", leads: 28, customers: 18 },
-    { month: "Dec", leads: 24, customers: 15 },
-  ];
+  // Build last-6-months growth data from real createdAt timestamps
+  const activityData = useMemo(() => {
+    const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      return {
+        month: MONTH_NAMES[m],
+        leads: tenantLeads.filter((l) => {
+          const cd = new Date(l.createdAt);
+          return cd.getMonth() === m && cd.getFullYear() === y;
+        }).length,
+        customers: tenantCustomers.filter((c) => {
+          const cd = new Date(c.createdAt);
+          return cd.getMonth() === m && cd.getFullYear() === y;
+        }).length,
+      };
+    });
+  }, [tenantLeads, tenantCustomers]);
 
   const StatCard = ({
     icon: Icon,
